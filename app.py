@@ -4,11 +4,12 @@ from secrets import randbelow
 
 logger = logging.getLogger(__name__)
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from auth_service import get_current_user, login_user, register_user
 from config import INSTAGRAM_PROVIDER, USER_ID
 from deepseek_service import ai_deep_analysis
 from emotion_detector import analyze_comments, generate_suggestion
@@ -49,6 +50,17 @@ class CreatorSourceUpdateRequest(BaseModel):
     platform: str = Field(..., min_length=1)
     handle: str = Field(..., min_length=1)
     status: str = Field(..., min_length=1)
+
+
+class RegisterRequest(BaseModel):
+    email: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=6)
+    name: str = Field(..., min_length=1)
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=1)
 
 
 class PaymentConfirmRequest(BaseModel):
@@ -257,6 +269,21 @@ def merge_distributions(responses):
 @app.get("/health")
 def health():
     return {"ok": True, "service": "Pulsay API"}
+
+
+@app.post("/api/auth/register")
+def register(payload: RegisterRequest):
+    return register_user(payload.email, payload.password, payload.name)
+
+
+@app.post("/api/auth/login")
+def login(payload: LoginRequest):
+    return login_user(payload.email, payload.password)
+
+
+@app.get("/api/auth/me")
+def me(user: dict = Depends(get_current_user)):
+    return user
 
 
 @app.get("/")
