@@ -104,7 +104,8 @@ def analyze_comments(comments):
     }
 
 
-def generate_suggestion(distribution, dominant):
+def _rule_based_suggestion(distribution, dominant):
+    """Fallback rule-based suggestion when DeepSeek is unavailable."""
     joy = distribution.get("joy", 0)
     anger = distribution.get("anger", 0)
     timepass = distribution.get("timepass", 0)
@@ -125,3 +126,18 @@ def generate_suggestion(distribution, dominant):
         return "Execution awkward lag rahi hai. Hook simple rakho aur punchline faster lao."
 
     return "Stable mood. Next post mein storytelling hook aur audience question add karo."
+
+
+def generate_suggestion(distribution, dominant, platform="instagram"):
+    """
+    Generate a creator suggestion — tries DeepSeek AI first, falls back to rules.
+    """
+    try:
+        from deepseek_service import ai_suggestion
+        result = ai_suggestion(distribution, dominant, platform=platform)
+        if result:
+            return result
+    except Exception:
+        pass
+
+    return _rule_based_suggestion(distribution, dominant)

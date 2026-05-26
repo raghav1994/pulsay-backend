@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from config import USER_ID
+from deepseek_service import ai_deep_analysis
 from emotion_detector import analyze_comments, generate_suggestion
 from instagram_service import get_comments, get_posts
 from mock_data import get_mock_comments, get_mock_posts
@@ -535,6 +536,44 @@ def confirm_payment(payload: PaymentConfirmRequest, request: Request):
     # TODO: Replace this demo confirmation with Razorpay/Stripe webhook signature verification.
     # Never unlock premium data in production from a client-only "success" event.
     return {"paid": True, "subscription": subscription}
+
+
+@app.get("/api/ai-analysis")
+def get_ai_analysis(platform: str = "instagram", request: Request = None):
+    """
+    Deep AI analysis of the latest post on a given platform using DeepSeek.
+    Falls back to rule-based data if the AI call fails.
+    """
+    mood_data = get_mock_mood(platform)
+    distribution = mood_data["mood"]["distribution"]
+    dominant = mood_data["mood"]["dominant_emotion"]
+    top_positive = mood_data["highlights"]["top_positive"]
+    top_negative = mood_data["highlights"]["top_negative"]
+    caption = mood_data["post"].get("caption", "")
+
+    ai_result = ai_deep_analysis(
+        distribution=distribution,
+        dominant=dominant,
+        top_positive=top_positive,
+        top_negative=top_negative,
+        platform=platform,
+        caption=caption,
+    )
+
+    return {
+        "platform": platform,
+        "post": mood_data["post"],
+        "mood": mood_data["mood"],
+        "ai_analysis": ai_result or {
+            "summary": mood_data["suggestion"],
+            "insight": f"Dominant emotion is {dominant}.",
+            "action": mood_data["suggestion"],
+            "risk": "No AI analysis available — DeepSeek key missing or API unreachable.",
+            "sentiment_score": distribution.get("joy", 0) + distribution.get("hype", 0),
+            "source": "rule_based_fallback",
+        },
+        "source": "ai" if ai_result else "fallback",
+    }
 
 
 @app.get("/api/subscription")
