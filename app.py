@@ -1,12 +1,15 @@
+import logging
 from datetime import datetime, timedelta
 from secrets import randbelow
+
+logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from config import USER_ID
+from config import INSTAGRAM_PROVIDER, USER_ID
 from deepseek_service import ai_deep_analysis
 from emotion_detector import analyze_comments, generate_suggestion
 from instagram_service import get_comments, get_posts
@@ -277,6 +280,42 @@ def get_creator_preview(platform: str, handle: str, request: Request):
         platform=clean_platform,
         handle=clean_handle,
     )
+
+    # Use Apify for real public Instagram data when configured
+    if clean_platform == "instagram" and INSTAGRAM_PROVIDER == "apify":
+        try:
+            from apify_service import get_profile, get_posts as apify_get_posts, get_comments as apify_get_comments
+            profile = get_profile(clean_handle)
+            if profile:
+                posts = apify_get_posts(clean_handle, limit=5)
+                latest_post = posts[0] if posts else {}
+                comments = apify_get_comments(clean_handle, post_shortcode=latest_post.get("shortcode"), limit=30) if latest_post else []
+                analysis = analyze_comments(comments) if comments else {}
+                suggestion = generate_suggestion(
+                    analysis.get("distribution", {}),
+                    analysis.get("dominant_emotion", "timepass"),
+                    platform="instagram",
+                ) if analysis else "Connect your account for personalised insights."
+
+                followers = profile["followers"]
+                followers_display = f"{followers / 1000:.0f}K" if followers >= 1000 else str(followers)
+
+                return {
+                    "platform": clean_platform,
+                    "handle": f"@{profile['username']}",
+                    "creator_name": profile["full_name"] or clean_handle.title(),
+                    "bio": profile["bio"],
+                    "followers": followers_display,
+                    "is_verified": profile["is_verified"],
+                    "niche": "Creator",
+                    "public_mood": analysis.get("dominant_emotion", "unknown").title() if analysis else "Unknown",
+                    "score_range": f"{analysis.get('distribution', {}).get('joy', 0) + analysis.get('distribution', {}).get('hype', 0)}-100" if analysis else "N/A",
+                    "suggestion": suggestion,
+                    "preview_notice": "Public preview only. Private insights require creator ownership verification.",
+                    "source": "apify",
+                }
+        except Exception as exc:
+            logger.warning("Apify preview fallback for %s: %s", clean_handle, exc)
 
     return get_mock_public_profile(clean_platform, clean_handle)
 
