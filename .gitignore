@@ -23,3 +23,21 @@ dist/
 *.log
 vite-dev.log
 vite-dev.err.log
+
+# Installed deps folder (not a standard venv)
+.deps/
+
+# Conversation / scratch files
+Conversation.docs
+Conversation.txt
+Ignore_Copy_base/
+
+# Claude Code local settings
+.claude/
+
+# Sub-projects (each should be its own repo)
+LokPulse_FrontEnd/
+Adorae/
+couldflare-worker/
+dashboard/
+helloworld/
