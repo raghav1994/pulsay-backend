@@ -1,0 +1,25 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+.venv_mac/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+vite-dev.log
+vite-dev.err.log

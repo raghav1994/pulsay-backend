@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LokPulse Reputation Dashboard</title>
+    <style>
+        :root {
+            --ink: #17212b;
+            --muted: #64707d;
+            --line: #dbe3ea;
+            --paper: #ffffff;
+            --soft: #f4f7fa;
+            --nav: #101827;
+            --blue: #2563eb;
+            --sky: #e8f1ff;
+            --green: #15803d;
+            --mint: #dff7ea;
+            --amber: #b45309;
+            --sand: #fff3d6;
+            --rose: #b42318;
+            --rose-soft: #ffe5e1;
+            --violet: #6d28d9;
+            --violet-soft: #efe7ff;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--ink);
+            background:
+                linear-gradient(180deg, #eef4fb 0, var(--soft) 340px, #f8fafc 100%);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        button, input, select { font: inherit; }
+        button { border: 0; cursor: pointer; }
+        h1, h2, h3, p { margin: 0; }
+
+        .app-shell {
+            display: grid;
+            grid-template-columns: 252px minmax(0, 1fr);
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            background: var(--nav);
+            color: white;
+            padding: 22px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 900;
+            font-size: 20px;
+        }
+
+        .brand-mark {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #22c55e, #38bdf8);
+            display: grid;
+            place-items: center;
+            color: #07111f;
+            font-weight: 900;
+        }
+
+        .nav-group { display: grid; gap: 6px; }
+
+        .nav-label {
+            color: #8fa0b3;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            margin: 8px 10px;
+        }
+
+        .nav-item {
+            width: 100%;
+            color: #cbd5e1;
+            background: transparent;
+            border-radius: 8px;
+            padding: 11px 12px;
+            display: flex;
+            align-items: center;
+            text-align: left;
+        }
+
+        .nav-item.active, .nav-item:hover {
+            color: white;
+            background: rgba(255, 255, 255, .1);
+        }
+
+        .account-card {
+            margin-top: auto;
+            border: 1px solid rgba(255, 255, 255, .12);
+            background: rgba(255, 255, 255, .06);
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        .account-name { font-weight: 800; margin-bottom: 4px; }
+        .account-meta { color: #a7b5c6; font-size: 13px; line-height: 1.4; }
+
+        .main { min-width: 0; display: flex; flex-direction: column; }
+
+        .topbar {
+            min-height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 14px 28px;
+            background: var(--paper);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .crumb { color: var(--muted); font-size: 14px; margin-bottom: 3px; }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .pill, .status {
+            border-radius: 999px;
+            padding: 7px 11px;
+            font-size: 13px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .pill, .done { color: var(--green); background: var(--mint); }
+        .waiting { color: var(--amber); background: var(--sand); }
+        .blocked { color: var(--rose); background: var(--rose-soft); }
+        .info { color: var(--blue); background: var(--sky); }
+
+        .btn {
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-weight: 850;
+            color: white;
+            background: var(--ink);
+            min-height: 42px;
+        }
+
+        .btn.secondary { color: var(--ink); background: #eef3f7; }
+        .btn.blue { background: var(--blue); }
+        .btn.ghost { color: var(--blue); background: var(--sky); }
+        .btn.small { min-height: 34px; padding: 7px 10px; font-size: 13px; }
+        .btn[disabled] { cursor: not-allowed; opacity: .55; }
+
+        .content {
+            padding: 26px 28px 36px;
+            display: grid;
+            gap: 22px;
+        }
+
+        .executive-strip {
+            border: 1px solid #cfe0f2;
+            background: linear-gradient(135deg, #ffffff 0%, #f1f8ff 52%, #eefbf3 100%);
+            border-radius: 8px;
+            padding: 18px 20px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 18px;
+            align-items: center;
+        }
+
+        .executive-title {
+            font-size: 20px;
+            font-weight: 950;
+            margin-bottom: 6px;
+        }
+
+        .executive-copy {
+            color: var(--muted);
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .hero-band, .work-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 390px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .panel, .metric, .profile-card, .comment-row, .step-card, .perception-card {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+
+        .panel { padding: 20px; min-width: 0; }
+
+        .analytics-showcase {
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(340px, .95fr);
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .score-panel {
+            display: grid;
+            grid-template-columns: 210px minmax(0, 1fr);
+            gap: 22px;
+            align-items: center;
+            background: linear-gradient(135deg, #0f172a 0%, #18243a 52%, #123238 100%);
+            color: white;
+            border-color: #213149;
+        }
+
+        .score-panel .panel-subtitle,
+        .score-panel .metric-note {
+            color: #b7c5d8;
+        }
+
+        .gauge {
+            --scorePct: 0%;
+            width: 190px;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background:
+                radial-gradient(circle at center, #101827 0 56%, transparent 57%),
+                conic-gradient(#22c55e 0 var(--scorePct), rgba(255,255,255,.13) var(--scorePct) 100%);
+            border: 1px solid rgba(255,255,255,.16);
+        }
+
+        .gauge-center {
+            display: grid;
+            text-align: center;
+            gap: 4px;
+        }
+
+        .gauge-value {
+            font-size: 36px;
+            font-weight: 950;
+        }
+
+        .gauge-label {
+            color: #b7c5d8;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .score-copy {
+            display: grid;
+            gap: 14px;
+        }
+
+        .score-heading {
+            font-size: 26px;
+            font-weight: 950;
+            line-height: 1.1;
+        }
+
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .score-chip {
+            border: 1px solid rgba(255,255,255,.14);
+            background: rgba(255,255,255,.06);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .score-chip strong {
+            display: block;
+            font-size: 18px;
+        }
+
+        .score-chip span {
+            display: block;
+            color: #b7c5d8;
+            font-size: 12px;
+            margin-top: 3px;
+        }
+
+        .visual-panel {
+            display: grid;
+            grid-template-columns: 190px minmax(0, 1fr);
+            gap: 18px;
+            align-items: center;
+        }
+
+        .donut {
+            --joyEnd: 0%;
+            --hypeEnd: 0%;
+            --timepassEnd: 0%;
+            --angerEnd: 0%;
+            --sadnessEnd: 0%;
+            width: 178px;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background:
+                radial-gradient(circle at center, white 0 54%, transparent 55%),
+                conic-gradient(
+                    #16a34a 0 var(--joyEnd),
+                    #2563eb var(--joyEnd) var(--hypeEnd),
+                    #f59e0b var(--hypeEnd) var(--timepassEnd),
+                    #dc2626 var(--timepassEnd) var(--angerEnd),
+                    #7c3aed var(--angerEnd) var(--sadnessEnd),
+                    #64748b 0 100%
+                );
+            border: 1px solid var(--line);
+        }
+
+        .donut-center {
+            text-align: center;
+            font-weight: 950;
+        }
+
+        .donut-center span {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .legend {
+            display: grid;
+            gap: 9px;
+        }
+
+        .legend-row {
+            display: grid;
+            grid-template-columns: 12px 1fr auto;
+            gap: 9px;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        .trend-panel svg {
+            width: 100%;
+            height: 190px;
+            display: block;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: linear-gradient(180deg, #ffffff, #f8fbff);
+        }
+
+        .matrix {
+            position: relative;
+            min-height: 230px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background:
+                linear-gradient(90deg, rgba(180,35,24,.08) 0 50%, rgba(21,128,61,.08) 50% 100%),
+                linear-gradient(180deg, rgba(37,99,235,.08) 0 50%, rgba(245,158,11,.08) 50% 100%);
+            overflow: hidden;
+        }
+
+        .matrix::before,
+        .matrix::after {
+            content: "";
+            position: absolute;
+            background: rgba(23, 33, 43, .16);
+        }
+
+        .matrix::before { left: 50%; top: 0; bottom: 0; width: 1px; }
+        .matrix::after { top: 50%; left: 0; right: 0; height: 1px; }
+
+        .matrix-dot {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--blue);
+            border: 3px solid white;
+            box-shadow: 0 8px 18px rgba(37, 99, 235, .3);
+            transform: translate(-50%, -50%);
+        }
+
+        .matrix-label {
+            position: absolute;
+            font-size: 12px;
+            font-weight: 850;
+            color: #475569;
+        }
+
+        .matrix-label.tl { left: 12px; top: 10px; }
+        .matrix-label.tr { right: 12px; top: 10px; }
+        .matrix-label.bl { left: 12px; bottom: 10px; }
+        .matrix-label.br { right: 12px; bottom: 10px; }
+
+        .hero-panel {
+            padding: 26px;
+            min-height: 280px;
+            display: grid;
+            align-content: space-between;
+            gap: 22px;
+        }
+
+        h1 {
+            font-size: 34px;
+            line-height: 1.08;
+            max-width: 820px;
+            letter-spacing: 0;
+        }
+
+        .lead {
+            color: var(--muted);
+            margin-top: 14px;
+            font-size: 16px;
+            line-height: 1.6;
+            max-width: 760px;
+        }
+
+        .panel-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .panel-title { font-size: 18px; font-weight: 900; }
+        .panel-subtitle { color: var(--muted); font-size: 13px; margin-top: 5px; line-height: 1.45; }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .manual-grid {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            align-items: end;
+            margin-top: 14px;
+        }
+
+        .field { display: grid; gap: 7px; }
+
+        label {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 850;
+            text-transform: uppercase;
+        }
+
+        input, select {
+            width: 100%;
+            border: 1px solid var(--line);
+            background: white;
+            border-radius: 8px;
+            padding: 10px 11px;
+            min-height: 42px;
+            color: var(--ink);
+        }
+
+        .steps { display: grid; gap: 12px; }
+
+        .step-card {
+            padding: 14px;
+            display: grid;
+            grid-template-columns: 36px 1fr auto;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .step-number {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+            background: var(--sky);
+            color: var(--blue);
+            font-weight: 900;
+        }
+
+        .step-title { font-weight: 850; }
+        .step-copy { color: var(--muted); font-size: 13px; margin-top: 3px; line-height: 1.4; }
+
+        .profile-card {
+            padding: 16px;
+            display: grid;
+            gap: 14px;
+        }
+
+        .profile-top {
+            display: grid;
+            grid-template-columns: 52px 1fr auto;
+            gap: 13px;
+            align-items: center;
+        }
+
+        .avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+            color: white;
+            background: linear-gradient(135deg, #d946ef, #2563eb);
+            font-weight: 900;
+        }
+
+        .profile-name { font-weight: 900; }
+        .profile-meta { color: var(--muted); font-size: 13px; margin-top: 4px; line-height: 1.4; }
+
+        .profile-bio {
+            border-top: 1px solid var(--line);
+            padding-top: 12px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .metric { padding: 18px; }
+        .metric.live { border-color: rgba(37, 99, 235, .4); box-shadow: 0 0 0 3px rgba(37, 99, 235, .06); }
+        .metric-label { color: var(--muted); font-size: 13px; font-weight: 750; }
+        .metric-value { margin-top: 8px; font-size: 28px; font-weight: 950; }
+        .metric-note { color: var(--muted); font-size: 13px; margin-top: 8px; line-height: 1.4; }
+
+        .chart { display: grid; gap: 12px; }
+
+        .bar-row {
+            display: grid;
+            grid-template-columns: 88px 1fr 44px;
+            gap: 10px;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .track {
+            height: 10px;
+            border-radius: 999px;
+            background: #edf2f7;
+            overflow: hidden;
+        }
+
+        .fill {
+            height: 100%;
+            border-radius: 999px;
+            background: var(--blue);
+        }
+
+        .perception-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .perception-card { padding: 15px; }
+        .perception-title { font-weight: 900; margin-bottom: 8px; }
+        .perception-copy { color: var(--muted); font-size: 13px; line-height: 1.45; }
+
+        .comments { display: grid; gap: 10px; }
+        .comment-row { padding: 14px; }
+        .comment-row.resolved { opacity: .62; background: #f8fafc; }
+        .comment-label { font-size: 12px; font-weight: 900; margin-bottom: 8px; }
+        .comment-text { color: var(--ink); font-size: 14px; line-height: 1.45; }
+        .comment-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 16px;
+        }
+
+        .control-row .field { min-width: 160px; }
+
+        .mini-table {
+            display: grid;
+            gap: 8px;
+        }
+
+        .mini-row {
+            display: grid;
+            grid-template-columns: 1.1fr .8fr .8fr;
+            gap: 10px;
+            padding: 10px 0;
+            border-top: 1px solid var(--line);
+            font-size: 13px;
+        }
+
+        .mini-row:first-child {
+            border-top: 0;
+        }
+
+        .mini-row strong {
+            font-size: 14px;
+        }
+
+        .loading-shimmer {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .loading-shimmer::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            transform: translateX(-100%);
+            background: linear-gradient(90deg, transparent, rgba(37, 99, 235, .12), transparent);
+            animation: shimmer 1s linear infinite;
+        }
+
+        @keyframes shimmer {
+            to { transform: translateX(100%); }
+        }
+
+        .activity { display: grid; gap: 12px; }
+
+        .activity-item {
+            display: grid;
+            grid-template-columns: 9px 1fr;
+            gap: 10px;
+            align-items: start;
+        }
+
+        .dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 999px;
+            background: var(--blue);
+            margin-top: 6px;
+        }
+
+        .activity-title { font-weight: 850; font-size: 14px; }
+        .activity-copy { color: var(--muted); font-size: 13px; margin-top: 3px; line-height: 1.4; }
+
+        .hidden { display: none; }
+
+        @media (max-width: 1180px) {
+            .app-shell { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+            .hero-band, .work-grid, .analytics-showcase { grid-template-columns: 1fr; }
+            .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .perception-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (max-width: 760px) {
+            .topbar { align-items: flex-start; flex-direction: column; padding: 16px; }
+            .content { padding: 16px; }
+            h1 { font-size: 26px; }
+            .executive-strip, .score-panel, .visual-panel { grid-template-columns: 1fr; }
+            .metrics, .form-grid, .manual-grid, .perception-grid { grid-template-columns: 1fr; }
+            .step-card, .profile-top { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-mark">LP</div>
+                <span>LokPulse</span>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-label">Customer setup</div>
+                <button class="nav-item active" data-target="onboarding">01 Name and email</button>
+                <button class="nav-item" data-target="profileMatch">02 Instagram match</button>
+                <button class="nav-item" data-target="reputation">03 Reputation report</button>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-label">Analytics</div>
+                <button class="nav-item" data-target="dashboard">Mood dashboard</button>
+                <button class="nav-item" data-target="perception">People perception</button>
+                <button class="nav-item" data-target="actions">Action center</button>
+            </div>
+
+            <div class="account-card">
+                <div class="account-name" id="sideName">New customer</div>
+                <div class="account-meta" id="sideMeta">Waiting for Instagram profile</div>
+            </div>
+        </aside>
+
+        <main class="main">
+            <header class="topbar">
+                <div>
+                    <div class="crumb">LokPulse / Creator Reputation Intelligence</div>
+                    <strong id="pageTitle">Customer onboarding</strong>
+                </div>
+                <div class="top-actions">
+                    <span class="pill" id="workspaceStatus">Awaiting customer details</span>
+                    <button class="btn secondary" id="refreshBtn">Refresh analysis</button>
+                    <button class="btn blue" data-target="onboarding">Start onboarding</button>
+                </div>
+            </header>
+
+            <section class="content">
+                <div class="hero-band" id="onboarding">
+                    <div class="panel hero-panel">
+                        <div>
+                            <h1>Enter a customer, find their public Instagram, then generate a full perception and reputation dashboard.</h1>
+                            <p class="lead">The onboarding flow starts with full name and email. LokPulse infers a likely Instagram username, checks if the profile looks valid, lets the user correct a wrong match, then turns the linked public profile into mood, perception, reputation, and next-action intelligence.</p>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="fullName">Full name</label>
+                                <input id="fullName" value="Aarav Mehta" placeholder="Enter customer full name">
+                            </div>
+                            <div class="field">
+                                <label for="email">Email ID</label>
+                                <input id="email" type="email" value="aarav@lokpulse.demo" placeholder="customer@example.com">
+                            </div>
+                            <button class="btn blue" id="findProfileBtn">Find Instagram</button>
+                        </div>
+                    </div>
+
+                    <aside class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <div class="panel-title">Onboarding checks</div>
+                                <div class="panel-subtitle">Profile discovery only uses public profile signals until the customer verifies ownership.</div>
+                            </div>
+                        </div>
+                        <div class="steps">
+                            <div class="step-card">
+                                <div class="step-number">1</div>
+                                <div>
+                                    <div class="step-title">Capture customer identity</div>
+                                    <div class="step-copy">Full name and email create the workspace.</div>
+                                </div>
+                                <span class="status waiting" id="identityStatus">Pending</span>
+                            </div>
+                            <div class="step-card">
+                                <div class="step-number">2</div>
+                                <div>
+                                    <div class="step-title">Infer Instagram username</div>
+                                    <div class="step-copy">The system tries a likely public handle from the entered name.</div>
+                                </div>
+                                <span class="status waiting" id="searchStatus">Waiting</span>
+                            </div>
+                            <div class="step-card">
+                                <div class="step-number">3</div>
+                                <div>
+                                    <div class="step-title">Customer confirms or corrects</div>
+                                    <div class="step-copy">If the match is wrong, enter the exact username to link.</div>
+                                </div>
+                                <span class="status blocked" id="confirmStatus">Not linked</span>
+                            </div>
+                            <div class="step-card">
+                                <div class="step-number">4</div>
+                                <div>
+                                    <div class="step-title">Generate dashboard</div>
+                                    <div class="step-copy">Mood, perception, reputation, risk, and recommendations become visible.</div>
+                                </div>
+                                <span class="status blocked" id="reportStatus">Locked</span>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+
+                <div class="work-grid" id="profileMatch">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <div class="panel-title">Instagram profile match</div>
+                                <div class="panel-subtitle">Confirm the detected public profile or provide the correct Instagram username.</div>
+                            </div>
+                            <span class="status info" id="profileSource">No profile searched</span>
+                        </div>
+
+                        <div id="profileCard" class="profile-card">
+                            <div class="profile-top">
+                                <div class="avatar">IG</div>
+                                <div>
+                                    <div class="profile-name">No Instagram profile linked yet</div>
+                                    <div class="profile-meta">Enter full name and email, then run profile discovery.</div>
+                                </div>
+                                <span class="status waiting">Waiting</span>
+                            </div>
+                            <div class="profile-bio">LokPulse will show the detected profile preview here before the dashboard is generated.</div>
+                        </div>
+
+                        <div class="manual-grid">
+                            <div class="field">
+                                <label for="manualHandle">Wrong profile? Enter Instagram username</label>
+                                <input id="manualHandle" placeholder="for example aaravspeaks">
+                            </div>
+                            <button class="btn secondary" id="manualLinkBtn">Use this username</button>
+                        </div>
+                    </div>
+
+                    <aside class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <div class="panel-title">Link rules</div>
+                                <div class="panel-subtitle">The demo accepts public handles and then uses comment intelligence from the integrated profile feed.</div>
+                            </div>
+                        </div>
+                        <div class="activity">
+                            <div class="activity-item">
+                                <span class="dot"></span>
+                                <div>
+                                    <div class="activity-title">Public profile required</div>
+                                    <div class="activity-copy">Private accounts can be stored, but public mood analysis cannot run until data is accessible.</div>
+                                </div>
+                            </div>
+                            <div class="activity-item">
+                                <span class="dot"></span>
+                                <div>
+                                    <div class="activity-title">Customer correction supported</div>
+                                    <div class="activity-copy">If name-based detection is wrong, the customer enters the exact username.</div>
+                                </div>
+                            </div>
+                            <div class="activity-item">
+                                <span class="dot"></span>
+                                <div>
+                                    <div class="activity-title">Dashboard follows the linked profile</div>
+                                    <div class="activity-copy">Mood analysis, perception, reputation, and actions update from the selected Instagram identity.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+
+                <div class="executive-strip" id="executiveSummary">
+                    <div>
+                        <div class="executive-title">Executive reputation brief</div>
+                        <div class="executive-copy" id="executiveCopy">Link a public Instagram profile to generate a live reputation brief, sentiment split, perception trajectory, and response plan.</div>
+                    </div>
+                    <span class="status waiting" id="confidenceBadge">Waiting for profile</span>
+                </div>
+
+                <div class="analytics-showcase" id="analysisVisuals">
+                    <div class="panel score-panel">
+                        <div class="gauge" id="reputationGauge">
+                            <div class="gauge-center">
+                                <div class="gauge-value" id="gaugeValue">--</div>
+                                <div class="gauge-label">Reputation</div>
+                            </div>
+                        </div>
+                        <div class="score-copy">
+                            <div>
+                                <div class="panel-title">Reputation health</div>
+                                <div class="panel-subtitle" id="gaugeNarrative">A profile-level score will appear after onboarding.</div>
+                            </div>
+                            <div class="score-heading" id="scoreHeadline">Awaiting customer profile</div>
+                            <div class="score-grid" id="scoreChips">
+                                <div class="score-chip"><strong>-</strong><span>Warmth</span></div>
+                                <div class="score-chip"><strong>-</strong><span>Risk</span></div>
+                                <div class="score-chip"><strong>-</strong><span>Fatigue</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel visual-panel">
+                        <div class="donut" id="sentimentDonut">
+                            <div class="donut-center">--<span>Sentiment</span></div>
+                        </div>
+                        <div>
+                            <div class="panel-title">Sentiment composition</div>
+                            <div class="panel-subtitle">Mood signals split by emotional category.</div>
+                            <div class="legend" id="sentimentLegend" style="margin-top: 14px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metrics" id="dashboard">
+                    <div class="metric">
+                        <div class="metric-label">Reputation score</div>
+                        <div class="metric-value" id="reputationScore">-</div>
+                        <div class="metric-note" id="reputationNote">Link Instagram to calculate</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Audience mood</div>
+                        <div class="metric-value" id="dominantMood">-</div>
+                        <div class="metric-note" id="moodNote">No analysis yet</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">People perception</div>
+                        <div class="metric-value" id="perceptionScore">-</div>
+                        <div class="metric-note">Trust, admiration, fatigue, and risk blend</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Comments analyzed</div>
+                        <div class="metric-value" id="commentsCount">-</div>
+                        <div class="metric-note">Latest integrated profile sample</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Risk queue</div>
+                        <div class="metric-value" id="riskQueue">-</div>
+                        <div class="metric-note">Comments needing review</div>
+                    </div>
+                </div>
+
+                <div class="work-grid" id="reputation">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <div class="panel-title">Detailed reputation report</div>
+                                <div class="panel-subtitle" id="reportSubtitle">Generated after a public Instagram profile is linked.</div>
+                            </div>
+                            <span class="status waiting" id="reportBadge">Awaiting profile</span>
+                        </div>
+                        <div class="control-row">
+                            <div class="field">
+                                <label for="timeRange">Time range</label>
+                                <select id="timeRange">
+                                    <option value="7">Last 7 days</option>
+                                    <option value="30" selected>Last 30 days</option>
+                                    <option value="90">Last 90 days</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="segmentFilter">Audience segment</label>
+                                <select id="segmentFilter">
+                                    <option value="all">All comments</option>
+                                    <option value="positive">Positive fans</option>
+                                    <option value="risk">Risk signals</option>
+                                    <option value="fatigue">Fatigue signals</option>
+                                </select>
+                            </div>
+                            <button class="btn secondary" id="simulateSpikeBtn">Simulate campaign spike</button>
+                        </div>
+                        <div class="perception-grid" id="reputationCards"></div>
+                    </div>
+
+                    <aside class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <div class="panel-title">Mood distribution</div>
+                                <div class="panel-subtitle">Detected from public comment language</div>
+                            </div>
+                        </div>
+                        <div class="chart" id="moodChart"></div>
+                    </aside>
+                </div>
+
+                <div class="work-grid">
+                    <div class="panel" id="perception">
+                        <div class="panel-head">
+                            <div>
+                                <div class="panel-title">People perception map</div>
+                                <div class="panel-subtitle">How the audience appears to perceive the creator right now.</div>
+                            </div>
+                        </div>
+                        <div class="perception-grid" id="perceptionCards"></div>
+                        <div class="mini-table" id="trendTable" style="margin-top: 14px;"></div>
+                    </div>
+
+                    <aside class="panel trend-panel">
+                        <div class="panel-head">
+                            <div>
+                                <div class="panel-title">Perception trajectory</div>
+                                <div class="panel-subtitle" id="trendNarrative">Reputation movement appears after analysis.</div>
+                            </div>
+                        </div>
+                        <svg id="trendSvg" viewBox="0 0 360 190" role="img" aria-label="Perception trend chart"></svg>
+                    </aside>
+                </div>
+
+                <div class="work-grid">
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <div class="panel-title">Reputation matrix</div>
+                                <div class="panel-subtitle">Positioning by audience warmth and reputation risk.</div>
+                            </div>
+                        </div>
+                        <div class="matrix" id="reputationMatrix">
+                            <span class="matrix-label tl">Loved but volatile</span>
+                            <span class="matrix-label tr">Advocacy zone</span>
+                            <span class="matrix-label bl">Low attention</span>
+                            <span class="matrix-label br">Quietly stable</span>
+                            <span class="matrix-dot" id="matrixDot" style="left: 50%; top: 50%;"></span>
+                        </div>
+                    </div>
+
+                    <aside class="panel" id="actions">
+                        <div class="panel-head">
+                            <div>
+                                <div class="panel-title">Action center</div>
+                                <div class="panel-subtitle">Recommended response and content moves.</div>
+                            </div>
+                        </div>
+                        <div class="comments" id="commentsPanel"></div>
+                    </aside>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
+        const emotionLabels = { joy: "Joy", hype: "Hype", timepass: "Timepass", anger: "Anger", sadness: "Sadness", cringe: "Cringe" };
+        let candidateProfile = null;
+        let linkedProfile = null;
+        let latestMood = null;
+        let currentReport = null;
+        let campaignSpike = false;
+        let actionState = {};
+
+        function api(path, options) {
+            return fetch(API_BASE + path, options);
+        }
+
+        function cleanHandle(value) {
+            return value.trim().replace(/^@+/, "").toLowerCase();
+        }
+
+        function inferInstagramHandle(name) {
+            const parts = name.toLowerCase().replace(/[^a-z0-9 ]/g, " ").trim().split(/\s+/).filter(Boolean);
+            if (!parts.length) return "";
+            if (parts.join(" ") === "aarav mehta") return "aaravspeaks";
+            return parts.join("");
+        }
+
+        function initials(name) {
+            const parts = name.trim().split(/\s+/).filter(Boolean);
+            return (parts[0]?.[0] || "I") + (parts[1]?.[0] || "G");
+        }
+
+        function hashText(text) {
+            return text.split("").reduce((total, char) => (total + char.charCodeAt(0) * 17) % 997, 0);
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function normalizeDistribution(raw) {
+            const keys = Object.keys(emotionLabels);
+            const total = keys.reduce((sum, key) => sum + Math.max(raw[key] || 0, 0), 0) || 1;
+            const rounded = {};
+            let used = 0;
+            keys.forEach((key, index) => {
+                rounded[key] = index === keys.length - 1 ? 100 - used : Math.round((Math.max(raw[key] || 0, 0) / total) * 100);
+                used += rounded[key];
+            });
+            return rounded;
+        }
+
+        function distributionForProfile(base, handle, range, segment) {
+            const seed = hashText(handle + range);
+            const raw = { ...base };
+            raw.joy += seed % 13;
+            raw.hype += range === "7" ? 8 : seed % 7;
+            raw.timepass += range === "90" ? 10 : seed % 9;
+            raw.anger += seed % 5;
+            raw.sadness += (seed + 3) % 6;
+            raw.cringe += (seed + 5) % 4;
+
+            if (campaignSpike) {
+                raw.hype += 16;
+                raw.anger += 5;
+                raw.timepass = Math.max(4, raw.timepass - 8);
+            }
+            if (segment === "positive") {
+                raw.joy += 24;
+                raw.hype += 18;
+                raw.anger = Math.max(1, raw.anger - 8);
+            }
+            if (segment === "risk") {
+                raw.anger += 18;
+                raw.sadness += 12;
+                raw.cringe += 10;
+                raw.joy = Math.max(2, raw.joy - 12);
+            }
+            if (segment === "fatigue") {
+                raw.timepass += 30;
+                raw.hype = Math.max(2, raw.hype - 10);
+            }
+            return normalizeDistribution(raw);
+        }
+
+        function buildReportData(data) {
+            const range = document.getElementById("timeRange")?.value || "30";
+            const segment = document.getElementById("segmentFilter")?.value || "all";
+            const handle = linkedProfile?.handle || "@unknown";
+            const distribution = distributionForProfile(data.mood.distribution, handle, range, segment);
+            const dominant = Object.keys(distribution).reduce((best, key) => distribution[key] > distribution[best] ? key : best, "joy");
+            const rangeMultiplier = range === "7" ? .7 : range === "90" ? 2.5 : 1;
+            const seed = hashText(handle);
+            const comments = Math.max(8, Math.round((data.mood.total_comments + (seed % 18)) * rangeMultiplier));
+            const likes = Math.round((data.post.likes + seed * 3) * rangeMultiplier);
+            return {
+                ...data,
+                mood: { ...data.mood, distribution, dominant_emotion: dominant, total_comments: comments },
+                post: { ...data.post, likes },
+                engagement_rate: ((comments / Math.max(likes, 1)) * 100).toFixed(2),
+                range,
+                segment,
+                handle
+            };
+        }
+
+        function setStatus(id, text, className) {
+            const node = document.getElementById(id);
+            node.textContent = text;
+            node.className = "status " + className;
+        }
+
+        function setWorkspace(text) {
+            document.getElementById("workspaceStatus").textContent = text;
+        }
+
+        function setLoading(isLoading) {
+            ["reputationScore", "dominantMood", "perceptionScore", "commentsCount", "riskQueue"].forEach(id => {
+                document.getElementById(id).closest(".metric").classList.toggle("loading-shimmer", isLoading);
+                document.getElementById(id).closest(".metric").classList.toggle("live", !isLoading && !!linkedProfile);
+            });
+        }
+
+        function scrollToSection(target) {
+            const node = document.getElementById(target);
+            if (!node) return;
+            node.scrollIntoView({ behavior: "smooth", block: "start" });
+            document.querySelectorAll(".nav-item").forEach(item => item.classList.toggle("active", item.dataset.target === target));
+            const titles = {
+                onboarding: "Customer onboarding",
+                profileMatch: "Instagram profile match",
+                dashboard: "Mood dashboard",
+                reputation: "Reputation report",
+                perception: "People perception",
+                actions: "Action center"
+            };
+            document.getElementById("pageTitle").textContent = titles[target] || "LokPulse";
+        }
+
+        function renderProfileCard(profile, sourceLabel, validStatus = "Public profile") {
+            candidateProfile = profile;
+            const profileChanged = linkedProfile && linkedProfile.handle !== profile.handle;
+            const fullName = document.getElementById("fullName").value.trim() || profile.creator_name;
+            document.getElementById("sideName").textContent = fullName;
+            document.getElementById("sideMeta").textContent = profile.handle + (profileChanged ? " pending confirmation" : " detected");
+            document.getElementById("profileSource").textContent = sourceLabel;
+            document.getElementById("manualHandle").value = profile.handle.replace("@", "");
+            if (profileChanged) {
+                setStatus("reportStatus", "Needs confirm", "waiting");
+                document.getElementById("reportBadge").textContent = "Review new profile";
+                document.getElementById("reportBadge").className = "status waiting";
+            }
+            document.getElementById("profileCard").innerHTML = `
+                <div class="profile-top">
+                    <div class="avatar">${initials(profile.creator_name).toUpperCase()}</div>
+                    <div>
+                        <div class="profile-name">${profile.creator_name}</div>
+                        <div class="profile-meta">${profile.handle} · ${profile.followers} followers · ${profile.niche}</div>
+                    </div>
+                    <span class="status done">${validStatus}</span>
+                </div>
+                <div class="profile-bio">${profile.bio}<br><strong>Preview:</strong> ${profile.public_mood}, expected score range ${profile.score_range}.</div>
+                <div class="top-actions">
+                    <button class="btn blue" id="confirmProfileBtn">Looks right, link profile</button>
+                    <button class="btn secondary" data-target="profileMatch">Change username</button>
+                </div>
+            `;
+            document.getElementById("confirmProfileBtn").addEventListener("click", linkProfile);
+            document.querySelectorAll("#profileCard [data-target]").forEach(button => {
+                button.addEventListener("click", () => scrollToSection(button.dataset.target));
+            });
+        }
+
+        async function findInstagramProfile() {
+            const fullName = document.getElementById("fullName").value.trim();
+            const email = document.getElementById("email").value.trim();
+            if (!fullName || !email) {
+                setWorkspace("Enter full name and email");
+                return;
+            }
+
+            setStatus("identityStatus", "Done", "done");
+            setStatus("searchStatus", "Searching", "waiting");
+            setWorkspace("Searching Instagram match");
+
+            const inferredHandle = inferInstagramHandle(fullName);
+            document.getElementById("manualHandle").value = inferredHandle;
+
+            try {
+                const check = await api(`/api/creator/handle-check?platform=instagram&handle=${encodeURIComponent(inferredHandle)}`);
+                const checkData = await check.json();
+                if (!checkData.valid) {
+                    setStatus("searchStatus", "Needs correction", "blocked");
+                    setWorkspace("No confident match. Enter username.");
+                    scrollToSection("profileMatch");
+                    return;
+                }
+
+                const response = await api(`/api/creator/preview?platform=instagram&handle=${encodeURIComponent(inferredHandle)}`);
+                const profile = await response.json();
+                renderProfileCard(profile, "Detected from full name");
+                setStatus("searchStatus", "Candidate found", "done");
+                setStatus("confirmStatus", "Review match", "waiting");
+                setWorkspace("Confirm detected profile");
+                scrollToSection("profileMatch");
+            } catch (error) {
+                setWorkspace("Profile search failed");
+            }
+        }
+
+        async function useManualUsername() {
+            const handle = cleanHandle(document.getElementById("manualHandle").value);
+            if (!handle) {
+                setWorkspace("Enter Instagram username");
+                return;
+            }
+
+            setWorkspace("Checking public username");
+            try {
+                const check = await api(`/api/creator/handle-check?platform=instagram&handle=${encodeURIComponent(handle)}`);
+                const checkData = await check.json();
+                const response = await api(`/api/creator/preview?platform=instagram&handle=${encodeURIComponent(handle)}`);
+                const profile = await response.json();
+                renderProfileCard(profile, checkData.valid ? "Customer supplied username" : "Demo public preview", checkData.valid ? "Public profile" : "Needs review");
+                setStatus("searchStatus", checkData.valid ? "Username valid" : "Manual review", checkData.valid ? "done" : "waiting");
+                setStatus("confirmStatus", "Review match", "waiting");
+                setWorkspace(checkData.valid ? "Username ready to link" : "Preview loaded for review");
+            } catch (error) {
+                setWorkspace("Could not check username");
+            }
+        }
+
+        async function linkProfile() {
+            if (!candidateProfile) return;
+            linkedProfile = candidateProfile;
+            actionState = {};
+            document.getElementById("sideMeta").textContent = linkedProfile.handle + " linked";
+            setStatus("confirmStatus", "Linked", "done");
+            setStatus("reportStatus", "Generating", "waiting");
+            setWorkspace("Profile linked. Building dashboard.");
+            await loadMood();
+            setStatus("reportStatus", "Unlocked", "done");
+            document.getElementById("reportBadge").textContent = "Live report";
+            document.getElementById("reportBadge").className = "status done";
+            scrollToSection("dashboard");
+        }
+
+        function reputationFrom(distribution) {
+            const positive = (distribution.joy || 0) + (distribution.hype || 0);
+            const fatigue = distribution.timepass || 0;
+            const risk = (distribution.anger || 0) + (distribution.sadness || 0) + (distribution.cringe || 0);
+            return Math.max(35, Math.min(96, Math.round(62 + positive * .34 - risk * .28 - fatigue * .08)));
+        }
+
+        function renderMood(data) {
+            latestMood = data;
+            currentReport = buildReportData(data);
+            const report = currentReport;
+            const distribution = report.mood.distribution;
+            const dominant = report.mood.dominant_emotion;
+            const score = reputationFrom(distribution);
+            const positive = (distribution.joy || 0) + (distribution.hype || 0);
+            const risk = (distribution.anger || 0) + (distribution.sadness || 0) + (distribution.cringe || 0);
+            const perceptionScore = Math.max(0, Math.min(100, Math.round(positive * .8 + score * .35 - risk * .25)));
+
+            document.getElementById("reputationScore").textContent = score + "/100";
+            document.getElementById("reputationNote").textContent = score >= 75 ? "Strong, with manageable fatigue signals" : "Watch audience fatigue and negative threads";
+            document.getElementById("dominantMood").textContent = emotionLabels[dominant] || dominant;
+            document.getElementById("moodNote").textContent = suggestionFor(distribution, dominant);
+            document.getElementById("perceptionScore").textContent = perceptionScore + "%";
+            document.getElementById("commentsCount").textContent = report.mood.total_comments;
+            document.getElementById("riskQueue").textContent = risk >= 25 ? "High" : risk >= 15 ? "Medium" : "Low";
+            document.getElementById("reportSubtitle").textContent = `${linkedProfile?.handle || "Linked Instagram"} · ${report.range} day window · ${report.post.likes} likes · ${report.engagement_rate}% engagement`;
+
+            renderExecutiveVisuals(report, score, perceptionScore, positive, risk, distribution);
+
+            document.getElementById("moodChart").innerHTML = Object.keys(emotionLabels).map(key => {
+                const value = distribution[key] || 0;
+                return `
+                    <div class="bar-row">
+                        <strong>${emotionLabels[key]}</strong>
+                        <div class="track"><div class="fill" style="width: ${value}%"></div></div>
+                        <span>${value}%</span>
+                    </div>
+                `;
+            }).join("");
+
+            renderReputationCards(score, positive, risk, distribution);
+            renderPerceptionCards(distribution, positive, risk);
+            renderTrendTable(report, score, risk);
+            renderTrendSvg(report, score, risk);
+            renderActions(report, risk);
+            setLoading(false);
+        }
+
+        function renderExecutiveVisuals(report, score, perceptionScore, positive, risk, distribution) {
+            const fatigue = distribution.timepass || 0;
+            const confidence = clamp(Math.round(68 + report.mood.total_comments * .65 - risk * .18), 55, 94);
+            const headline = score >= 78 ? "Strong reputation with active fan advocacy" : score >= 64 ? "Stable reputation with fatigue to manage" : "Sensitive reputation needing active repair";
+            const brief = `${linkedProfile?.creator_name || "This creator"} is currently in a ${headline.toLowerCase()} state. The strongest signal is ${emotionLabels[report.mood.dominant_emotion]}, with ${positive}% positive momentum, ${fatigue}% fatigue, and ${risk}% reputation risk across the selected ${report.range}-day view.`;
+
+            document.getElementById("executiveCopy").textContent = brief;
+            document.getElementById("confidenceBadge").textContent = `${confidence}% confidence`;
+            document.getElementById("confidenceBadge").className = "status done";
+            document.getElementById("reputationGauge").style.setProperty("--scorePct", `${score}%`);
+            document.getElementById("gaugeValue").textContent = score;
+            document.getElementById("gaugeNarrative").textContent = `${report.handle} is being evaluated across ${report.mood.total_comments} public comments in the selected window.`;
+            document.getElementById("scoreHeadline").textContent = headline;
+            document.getElementById("scoreChips").innerHTML = `
+                <div class="score-chip"><strong>${positive}%</strong><span>Warmth</span></div>
+                <div class="score-chip"><strong>${risk}%</strong><span>Risk</span></div>
+                <div class="score-chip"><strong>${fatigue}%</strong><span>Fatigue</span></div>
+            `;
+
+            const donut = document.getElementById("sentimentDonut");
+            const joyEnd = distribution.joy || 0;
+            const hypeEnd = joyEnd + (distribution.hype || 0);
+            const timepassEnd = hypeEnd + (distribution.timepass || 0);
+            const angerEnd = timepassEnd + (distribution.anger || 0);
+            const sadnessEnd = angerEnd + (distribution.sadness || 0);
+            donut.style.setProperty("--joyEnd", `${joyEnd}%`);
+            donut.style.setProperty("--hypeEnd", `${hypeEnd}%`);
+            donut.style.setProperty("--timepassEnd", `${timepassEnd}%`);
+            donut.style.setProperty("--angerEnd", `${angerEnd}%`);
+            donut.style.setProperty("--sadnessEnd", `${sadnessEnd}%`);
+            donut.innerHTML = `<div class="donut-center">${perceptionScore}%<span>Perception</span></div>`;
+
+            const colors = {
+                joy: "#16a34a",
+                hype: "#2563eb",
+                timepass: "#f59e0b",
+                anger: "#dc2626",
+                sadness: "#7c3aed",
+                cringe: "#64748b"
+            };
+            document.getElementById("sentimentLegend").innerHTML = Object.keys(emotionLabels).map(key => `
+                <div class="legend-row">
+                    <span class="swatch" style="background: ${colors[key]}"></span>
+                    <span>${emotionLabels[key]}</span>
+                    <strong>${distribution[key] || 0}%</strong>
+                </div>
+            `).join("");
+
+            const x = clamp(positive, 8, 92);
+            const y = clamp(100 - risk * 2.2, 10, 88);
+            document.getElementById("matrixDot").style.left = `${x}%`;
+            document.getElementById("matrixDot").style.top = `${y}%`;
+        }
+
+        function suggestionFor(distribution, dominant) {
+            if ((distribution.anger || 0) + (distribution.cringe || 0) > 30) return "Reputation pressure is rising. Respond selectively, avoid defensive tone, and publish a grounded follow-up.";
+            if ((distribution.timepass || 0) > 45) return "Audience fatigue is visible. Break the format with behind-the-scenes, Q&A, or a new collaborator.";
+            if ((distribution.joy || 0) + (distribution.hype || 0) > 58) return "Positive momentum is strong. Pin a fan comment and ship a fast follow-up while attention is warm.";
+            if (dominant === "sadness") return "Nostalgia is leading. Bring back an older format with a current twist.";
+            return "Stable reputation. Keep the hook sharper and ask one direct audience question in the next post.";
+        }
+
+        function renderReputationCards(score, positive, risk, distribution) {
+            document.getElementById("reputationCards").innerHTML = `
+                <div class="perception-card">
+                    <div class="perception-title">Brand warmth</div>
+                    <div class="perception-copy">${positive}% of the visible audience signal is positive or hype-led, indicating the creator is still liked and shareable.</div>
+                </div>
+                <div class="perception-card">
+                    <div class="perception-title">Reputation risk</div>
+                    <div class="perception-copy">${risk}% of comments carry anger, sadness, or cringe signals. Keep response tone calm and avoid defensive replies.</div>
+                </div>
+                <div class="perception-card">
+                    <div class="perception-title">Content fatigue</div>
+                    <div class="perception-copy">${distribution.timepass || 0}% timepass signal means some viewers see the format as repetitive. Fresh hooks should help.</div>
+                </div>
+                <div class="perception-card">
+                    <div class="perception-title">Public narrative</div>
+                    <div class="perception-copy">People see this creator as funny and familiar, but are asking for less repetition and more behind-the-scenes context.</div>
+                </div>
+                <div class="perception-card">
+                    <div class="perception-title">Trust level</div>
+                    <div class="perception-copy">${score >= 75 ? "Healthy" : "Recoverable"} trust. The creator should acknowledge critique while reinforcing the content identity audiences like.</div>
+                </div>
+                <div class="perception-card">
+                    <div class="perception-title">Commercial fit</div>
+                    <div class="perception-copy">Suitable for youth, comedy, creator tools, and casual lifestyle campaigns; avoid serious premium positioning until fatigue falls.</div>
+                </div>
+            `;
+        }
+
+        function renderPerceptionCards(distribution, positive, risk) {
+            document.getElementById("perceptionCards").innerHTML = `
+                <div class="perception-card">
+                    <div class="perception-title">What people like</div>
+                    <div class="perception-copy">High-like positive comments point to energy, relatability, and audience loyalty.</div>
+                </div>
+                <div class="perception-card">
+                    <div class="perception-title">What people doubt</div>
+                    <div class="perception-copy">The main doubt is originality. Repeated templates are becoming visible to loyal viewers.</div>
+                </div>
+                <div class="perception-card">
+                    <div class="perception-title">Emotional balance</div>
+                    <div class="perception-copy">${positive}% positive/hype against ${risk}% risk-led comments gives the account a stable but watchful profile.</div>
+                </div>
+            `;
+        }
+
+        function renderTrendTable(report, score, risk) {
+            const seed = hashText(report.handle + report.range + report.segment);
+            const rows = [
+                ["Trust velocity", `${score - 4 + (seed % 9)}%`, seed % 2 ? "Improving" : "Flat"],
+                ["Fan advocacy", `${clamp(report.mood.distribution.joy + report.mood.distribution.hype + seed % 6, 0, 100)}%`, "Strongest in loyal fans"],
+                ["Campaign suitability", risk > 25 ? "Watch" : "Ready", risk > 25 ? "Delay premium pitch" : "Safe for shortlist"],
+                ["Response urgency", risk > 25 ? "Today" : "This week", `${risk}% risk signal`]
+            ];
+            document.getElementById("trendTable").innerHTML = rows.map(row => `
+                <div class="mini-row">
+                    <strong>${row[0]}</strong>
+                    <span>${row[1]}</span>
+                    <span>${row[2]}</span>
+                </div>
+            `).join("");
+        }
+
+        function renderTrendSvg(report, score, risk) {
+            const seed = hashText(report.handle + report.segment);
+            const points = Array.from({ length: 8 }, (_, index) => {
+                const drift = (index - 3) * (campaignSpike ? 3.2 : 1.4);
+                const noise = ((seed + index * 19) % 13) - 6;
+                return clamp(score - 8 + drift + noise - risk * .08, 35, 94);
+            });
+            const width = 360;
+            const height = 190;
+            const coords = points.map((value, index) => {
+                const x = 28 + index * ((width - 56) / (points.length - 1));
+                const y = height - 30 - ((value - 30) / 70) * 130;
+                return [x, y];
+            });
+            const line = coords.map(pair => pair.join(",")).join(" ");
+            const area = `28,160 ${line} 332,160`;
+            const latest = points[points.length - 1];
+            const first = points[0];
+            const movement = latest - first;
+            document.getElementById("trendNarrative").textContent = `${movement >= 0 ? "Up" : "Down"} ${Math.abs(Math.round(movement))} points over the selected ${report.range}-day view.`;
+            document.getElementById("trendSvg").innerHTML = `
+                <defs>
+                    <linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stop-color="#2563eb" stop-opacity=".2" />
+                        <stop offset="100%" stop-color="#2563eb" stop-opacity="0" />
+                    </linearGradient>
+                </defs>
+                <line x1="28" y1="45" x2="332" y2="45" stroke="#dbe3ea" />
+                <line x1="28" y1="95" x2="332" y2="95" stroke="#dbe3ea" />
+                <line x1="28" y1="145" x2="332" y2="145" stroke="#dbe3ea" />
+                <polygon points="${area}" fill="url(#trendFill)" />
+                <polyline points="${line}" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+                ${coords.map(([x, y], index) => `<circle cx="${x}" cy="${y}" r="${index === coords.length - 1 ? 6 : 4}" fill="${index === coords.length - 1 ? "#16a34a" : "#2563eb"}" stroke="white" stroke-width="2" />`).join("")}
+                <text x="28" y="24" fill="#64707d" font-size="12" font-weight="700">Reputation trajectory</text>
+                <text x="280" y="24" fill="#17212b" font-size="13" font-weight="900">${Math.round(latest)}/100</text>
+            `;
+        }
+
+        function renderActions(data, risk) {
+            const positive = data.highlights.top_positive[0] || "No positive highlight yet.";
+            const negative = data.highlights.top_negative[0] || "No negative highlight yet.";
+            const actions = [
+                { id: "pin", label: "Pin-worthy comment", color: "var(--green)", text: `"${positive}"`, buttons: ["Pin comment", "Add to report"] },
+                { id: "watch", label: "Reputation watch", color: "var(--rose)", text: `"${negative}"`, buttons: ["Mark reviewed", "Create reply"] },
+                { id: "move", label: "Next content move", color: "var(--blue)", text: suggestionFor(data.mood.distribution, data.mood.dominant_emotion), buttons: ["Assign task", "Copy brief"] },
+                { id: "success", label: "Customer success note", color: "var(--amber)", text: risk >= 25 ? "Schedule a reputation review before the next campaign pitch." : "Account is ready for regular monitoring and weekly insight reports.", buttons: ["Send summary", "Resolve"] }
+            ];
+            document.getElementById("commentsPanel").innerHTML = actions.map(action => `
+                <div class="comment-row ${actionState[action.id] ? "resolved" : ""}">
+                    <div class="comment-label" style="color: ${action.color}">${action.label}</div>
+                    <div class="comment-text">${action.text}</div>
+                    <div class="comment-actions">
+                        ${action.buttons.map(label => `<button class="btn small ${actionState[action.id] ? "secondary" : "ghost"}" data-action="${action.id}">${actionState[action.id] ? "Done" : label}</button>`).join("")}
+                    </div>
+                </div>
+            `).join("");
+            document.querySelectorAll("[data-action]").forEach(button => {
+                button.addEventListener("click", () => {
+                    actionState[button.dataset.action] = true;
+                    setWorkspace("Action updated");
+                    renderActions(currentReport || data, risk);
+                });
+            });
+        }
+
+        async function loadMood() {
+            if (!linkedProfile) {
+                setWorkspace("Link Instagram before refreshing analysis");
+                return;
+            }
+            setLoading(true);
+            setWorkspace("Refreshing public profile analysis");
+            try {
+                const response = await api("/api/mood");
+                renderMood(await response.json());
+                setWorkspace(`Analysis refreshed for ${linkedProfile.handle}`);
+            } catch (error) {
+                document.getElementById("moodNote").textContent = "Could not load mood data: " + error.message;
+                setLoading(false);
+            }
+        }
+
+        function rerenderCurrentReport() {
+            if (!latestMood || !linkedProfile) {
+                setWorkspace("Link Instagram before changing report filters");
+                return;
+            }
+            setWorkspace("Report filters updated");
+            renderMood(latestMood);
+        }
+
+        function toggleCampaignSpike() {
+            if (!latestMood || !linkedProfile) {
+                setWorkspace("Link Instagram before simulating a spike");
+                return;
+            }
+            campaignSpike = !campaignSpike;
+            document.getElementById("simulateSpikeBtn").textContent = campaignSpike ? "Remove campaign spike" : "Simulate campaign spike";
+            setWorkspace(campaignSpike ? "Campaign spike applied" : "Campaign spike removed");
+            renderMood(latestMood);
+        }
+
+        document.querySelectorAll("[data-target]").forEach(button => {
+            button.addEventListener("click", () => scrollToSection(button.dataset.target));
+        });
+        document.getElementById("findProfileBtn").addEventListener("click", findInstagramProfile);
+        document.getElementById("manualLinkBtn").addEventListener("click", useManualUsername);
+        document.getElementById("refreshBtn").addEventListener("click", loadMood);
+        document.getElementById("timeRange").addEventListener("change", rerenderCurrentReport);
+        document.getElementById("segmentFilter").addEventListener("change", rerenderCurrentReport);
+        document.getElementById("simulateSpikeBtn").addEventListener("click", toggleCampaignSpike);
+
+        document.getElementById("moodChart").innerHTML = `<div class="panel-subtitle">Link a public Instagram profile to generate distribution.</div>`;
+        document.getElementById("reputationCards").innerHTML = `<div class="perception-card"><div class="perception-title">Waiting for customer</div><div class="perception-copy">Enter full name and email to begin Instagram discovery.</div></div>`;
+        document.getElementById("perceptionCards").innerHTML = `<div class="perception-card"><div class="perception-title">No perception yet</div><div class="perception-copy">People perception appears after a public profile is linked.</div></div>`;
+        document.getElementById("commentsPanel").innerHTML = `<div class="comment-row"><div class="comment-label">Action center locked</div><div class="comment-text">Complete onboarding to generate recommendations.</div></div>`;
+    </script>
+</body>
+</html>
