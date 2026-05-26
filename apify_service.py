@@ -32,8 +32,8 @@ def _run_actor(actor_id: str, actor_input: dict) -> list[dict]:
     if not APIFY_TOKEN:
         raise RuntimeError("APIFY_TOKEN is not configured.")
 
-    # Normalise actor id: apify/name or apify~name both work
-    actor_id_url = actor_id.replace("~", "/")
+    # Apify requires tilde in URLs: apify~instagram-scraper (not slash)
+    actor_id_url = actor_id.replace("/", "~")
 
     url = f"{APIFY_BASE}/acts/{actor_id_url}/run-sync-get-dataset-items"
     params = {
@@ -56,30 +56,34 @@ def _run_actor(actor_id: str, actor_input: dict) -> list[dict]:
 
 def get_profile(username: str) -> dict | None:
     """
-    Fetch public profile metadata for an Instagram username.
-    Returns normalised dict with: username, full_name, bio, followers, following, posts_count, profile_pic_url.
-    Returns None on failure.
+    Fetch public profile metadata by scraping the latest post and reading owner fields.
+    Uses directUrls (the only reliable approach for apify/instagram-scraper).
+    Returns normalised dict or None on failure.
     """
     clean = username.lstrip("@").strip().lower()
     try:
         items = _run_actor(
-            APIFY_INSTAGRAM_PROFILE_ACTOR,
-            {"usernames": [clean]},
+            APIFY_INSTAGRAM_ACTOR,
+            {
+                "directUrls": [f"https://www.instagram.com/{clean}/"],
+                "resultsType": "posts",
+                "resultsLimit": 1,
+            },
         )
-        if not items:
+        if not items or items[0].get("error"):
             return None
 
         raw = items[0]
         return {
-            "username": raw.get("username", clean),
-            "full_name": raw.get("fullName") or raw.get("full_name", ""),
-            "bio": raw.get("biography") or raw.get("bio", ""),
-            "followers": raw.get("followersCount") or raw.get("followers_count", 0),
-            "following": raw.get("followsCount") or raw.get("follows_count", 0),
-            "posts_count": raw.get("postsCount") or raw.get("posts_count", 0),
-            "profile_pic_url": raw.get("profilePicUrl") or raw.get("profile_pic_url", ""),
-            "is_verified": raw.get("verified", False),
-            "is_business": raw.get("isBusinessAccount", False),
+            "username": raw.get("ownerUsername", clean),
+            "full_name": raw.get("ownerFullName", ""),
+            "bio": "",  # not available from post scrape; requires profile endpoint
+            "followers": 0,  # not available from post scrape
+            "following": 0,
+            "posts_count": 0,
+            "profile_pic_url": "",
+            "is_verified": False,
+            "is_business": False,
         }
     except Exception as exc:
         logger.warning("get_profile(%s) failed: %s", clean, exc)
@@ -88,7 +92,7 @@ def get_profile(username: str) -> dict | None:
 
 def get_posts(username: str, limit: int | None = None) -> list[dict]:
     """
-    Fetch recent public posts for an Instagram username.
+    Fetch recent public posts for an Instagram username using directUrls.
     Returns list of normalised post dicts.
     """
     clean = username.lstrip("@").strip().lower()
@@ -98,23 +102,26 @@ def get_posts(username: str, limit: int | None = None) -> list[dict]:
         items = _run_actor(
             APIFY_INSTAGRAM_ACTOR,
             {
-                "usernames": [clean],
+                "directUrls": [f"https://www.instagram.com/{clean}/"],
                 "resultsType": "posts",
                 "resultsLimit": limit,
-                "addParentData": False,
             },
         )
 
         posts = []
         for raw in items:
+            if raw.get("error"):
+                continue
             posts.append({
                 "id": raw.get("id") or raw.get("shortCode", ""),
                 "shortcode": raw.get("shortCode", ""),
                 "caption": raw.get("caption", ""),
-                "likes": raw.get("likesCount") or raw.get("likes_count", 0),
-                "comments_count": raw.get("commentsCount") or raw.get("comments_count", 0),
+                "likes": raw.get("likesCount", 0),
+                "comments_count": raw.get("commentsCount", 0),
                 "timestamp": raw.get("timestamp", ""),
                 "url": raw.get("url") or f"https://www.instagram.com/p/{raw.get('shortCode', '')}",
+                "owner_username": raw.get("ownerUsername", clean),
+                "owner_full_name": raw.get("ownerFullName", ""),
                 "platform": "instagram",
             })
 
@@ -126,35 +133,50 @@ def get_posts(username: str, limit: int | None = None) -> list[dict]:
 
 def get_comments(username: str, post_shortcode: str | None = None, limit: int | None = None) -> list[dict]:
     """
-    Fetch comments for a specific post (by shortcode) or the latest post of a username.
+    Fetch comments from a post via directUrls.
+    Uses post shortcode if provided, otherwise fetches from latest post of username.
     Returns list of normalised comment dicts.
     """
     clean = username.lstrip("@").strip().lower()
     limit = limit or APIFY_RESULTS_LIMIT
 
-    actor_input: dict = {
-        "resultsType": "comments",
-        "resultsLimit": limit,
-        "addParentData": True,
-    }
-
     if post_shortcode:
-        actor_input["directUrls"] = [f"https://www.instagram.com/p/{post_shortcode}/"]
+        url = f"https://www.instagram.com/p/{post_shortcode}/"
     else:
-        actor_input["usernames"] = [clean]
+        url = f"https://www.instagram.com/{clean}/"
 
     try:
-        items = _run_actor(APIFY_INSTAGRAM_ACTOR, actor_input)
+        items = _run_actor(
+            APIFY_INSTAGRAM_ACTOR,
+            {
+                "directUrls": [url],
+                "resultsType": "comments",
+                "resultsLimit": limit,
+            },
+        )
 
         comments = []
         for raw in items:
-            comments.append({
-                "id": raw.get("id", ""),
-                "text": raw.get("text") or raw.get("ownerFullName", ""),
-                "username": raw.get("ownerUsername") or raw.get("owner", {}).get("username", "unknown"),
-                "like_count": raw.get("likesCount") or raw.get("likes_count", 0),
-                "timestamp": raw.get("timestamp", ""),
-            })
+            if raw.get("error"):
+                continue
+            # latestComments array inside a post OR top-level comment items
+            if "latestComments" in raw:
+                for c in raw["latestComments"]:
+                    comments.append({
+                        "id": c.get("id", ""),
+                        "text": c.get("text", ""),
+                        "username": c.get("ownerUsername", "unknown"),
+                        "like_count": c.get("likesCount", 0),
+                        "timestamp": c.get("timestamp", ""),
+                    })
+            else:
+                comments.append({
+                    "id": raw.get("id", ""),
+                    "text": raw.get("text", ""),
+                    "username": raw.get("ownerUsername", "unknown"),
+                    "like_count": raw.get("likesCount", 0),
+                    "timestamp": raw.get("timestamp", ""),
+                })
 
         return comments
     except Exception as exc:
