@@ -737,7 +737,7 @@ def analyze_instagram_handle(handle: str, limit: int = 50):
             "avg_comments": round(total_post_comments_count / max(len(posts), 1)),
         }
 
-        # Deep AI analysis on aggregated real comment data
+        # Deep AI analysis on aggregated real comment data — pass full comment list for richest output
         ai_result = ai_deep_analysis(
             distribution=result["mood"]["distribution"],
             dominant=result["mood"]["dominant_emotion"],
@@ -745,6 +745,9 @@ def analyze_instagram_handle(handle: str, limit: int = 50):
             top_negative=result["highlights"]["top_negative"],
             platform="instagram",
             caption=latest_post.get("caption", ""),
+            handle=clean_handle,
+            full_comments=all_comments,
+            profile=result["profile"],
         )
         if ai_result:
             result["ai_analysis"] = ai_result
