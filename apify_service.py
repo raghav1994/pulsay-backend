@@ -112,6 +112,18 @@ def get_posts(username: str, limit: int | None = None) -> list[dict]:
         for raw in items:
             if raw.get("error"):
                 continue
+            # Extract latestComments bundled inside the post object
+            latest_comments = [
+                {
+                    "id": c.get("id", ""),
+                    "text": c.get("text", ""),
+                    "username": c.get("ownerUsername", "unknown"),
+                    "like_count": c.get("likesCount", 0),
+                    "timestamp": c.get("timestamp", ""),
+                }
+                for c in raw.get("latestComments", [])
+                if c.get("text", "").strip()
+            ]
             posts.append({
                 "id": raw.get("id") or raw.get("shortCode", ""),
                 "shortcode": raw.get("shortCode", ""),
@@ -123,6 +135,7 @@ def get_posts(username: str, limit: int | None = None) -> list[dict]:
                 "owner_username": raw.get("ownerUsername", clean),
                 "owner_full_name": raw.get("ownerFullName", ""),
                 "platform": "instagram",
+                "latest_comments": latest_comments,
             })
 
         return posts

@@ -679,44 +679,65 @@ def analyze_instagram_handle(handle: str, limit: int = 50):
     try:
         from apify_service import get_posts as apify_posts, get_comments as apify_comments
 
-        posts = apify_posts(clean_handle, limit=5)
+        # Fetch latest 30 posts in a single Apify call
+        posts = apify_posts(clean_handle, limit=30)
         if not posts:
             raise HTTPException(
                 status_code=404,
                 detail=f"No public posts found for @{clean_handle}. The account may be private or the handle is incorrect.",
             )
 
+        # Aggregate comments from the latestComments field bundled inside each post
+        # (Apify includes ~10–20 comments per post at no extra API cost)
+        all_comments: list[dict] = []
+        total_likes = 0
+        total_post_comments_count = 0
+        for post in posts:
+            total_likes += post.get("likes", 0)
+            total_post_comments_count += post.get("comments_count", 0)
+            for c in post.get("latest_comments", []):
+                all_comments.append({
+                    "id": c.get("id", ""),
+                    "text": c.get("text", ""),
+                    "username": c.get("username", "unknown"),
+                    "like_count": c.get("like_count", 0),
+                })
+
+        # Fallback: explicit comments fetch if Apify didn't bundle latestComments
+        if not all_comments:
+            logger.info("No latestComments in posts for @%s — falling back to explicit fetch", clean_handle)
+            comments_raw = apify_comments(
+                clean_handle,
+                post_shortcode=posts[0].get("shortcode"),
+                limit=min(limit, 100),
+            )
+            all_comments = [
+                {
+                    "id": c.get("id", ""),
+                    "text": c.get("text", ""),
+                    "username": c.get("username", "unknown"),
+                    "like_count": c.get("like_count", 0),
+                }
+                for c in comments_raw
+                if c.get("text", "").strip()
+            ]
+
         latest_post = posts[0]
-        comments_raw = apify_comments(
-            clean_handle,
-            post_shortcode=latest_post.get("shortcode"),
-            limit=min(limit, 100),
-        )
-
-        comments = [
-            {
-                "id": c.get("id", ""),
-                "text": c.get("text", ""),
-                "username": c.get("username", "unknown"),
-                "like_count": c.get("like_count", 0),
-            }
-            for c in comments_raw
-            if c.get("text", "").strip()
-        ]
-
-        result = build_response(latest_post, comments, source="apify_live", platform="instagram")
+        result = build_response(latest_post, all_comments, source="apify_live", platform="instagram")
         result["handle"] = f"@{clean_handle}"
         result["profile"] = {
-            "username": clean_handle,  # always use the searched handle
+            "username": clean_handle,
             "full_name": latest_post.get("owner_full_name", ""),
             "posts_analyzed": len(posts),
-            "comments_analyzed": len(comments),
+            "comments_analyzed": len(all_comments),
             "post_url": latest_post.get("url", ""),
-            "post_likes": latest_post.get("likes", 0),
-            "post_comments_count": latest_post.get("comments_count", 0),
+            "total_likes": total_likes,
+            "total_comments_count": total_post_comments_count,
+            "avg_likes": round(total_likes / max(len(posts), 1)),
+            "avg_comments": round(total_post_comments_count / max(len(posts), 1)),
         }
 
-        # Deep AI analysis on real comment data
+        # Deep AI analysis on aggregated real comment data
         ai_result = ai_deep_analysis(
             distribution=result["mood"]["distribution"],
             dominant=result["mood"]["dominant_emotion"],
