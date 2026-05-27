@@ -707,7 +707,7 @@ def analyze_instagram_handle(handle: str, limit: int = 50):
         result = build_response(latest_post, comments, source="apify_live", platform="instagram")
         result["handle"] = f"@{clean_handle}"
         result["profile"] = {
-            "username": latest_post.get("owner_username", clean_handle),
+            "username": clean_handle,  # always use the searched handle
             "full_name": latest_post.get("owner_full_name", ""),
             "posts_analyzed": len(posts),
             "comments_analyzed": len(comments),
