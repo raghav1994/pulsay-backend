@@ -722,12 +722,30 @@ def analyze_instagram_handle(handle: str, limit: int = 50):
                 if c.get("text", "").strip()
             ]
 
-        latest_post = posts[0]
+        # Prefer a canonical post — one whose ownerUsername actually matches the queried handle.
+        # This avoids collab/tagged posts surfacing a collaborator's name as the profile name.
+        canonical_posts = [
+            p for p in posts
+            if p.get("owner_username", "").lower() == clean_handle.lower()
+        ]
+        canonical_post = canonical_posts[0] if canonical_posts else posts[0]
+
+        # Derive the most reliable full_name: pick the ownerFullName that appears most
+        # often across all posts whose ownerUsername matches the queried handle.
+        from collections import Counter
+        name_counts: Counter = Counter(
+            p.get("owner_full_name", "").strip()
+            for p in canonical_posts
+            if p.get("owner_full_name", "").strip()
+        )
+        canonical_full_name = name_counts.most_common(1)[0][0] if name_counts else ""
+
+        latest_post = canonical_post
         result = build_response(latest_post, all_comments, source="apify_live", platform="instagram")
         result["handle"] = f"@{clean_handle}"
         result["profile"] = {
             "username": clean_handle,
-            "full_name": latest_post.get("owner_full_name", ""),
+            "full_name": canonical_full_name,
             "posts_analyzed": len(posts),
             "comments_analyzed": len(all_comments),
             "post_url": latest_post.get("url", ""),
