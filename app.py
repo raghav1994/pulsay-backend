@@ -658,6 +658,85 @@ def get_subscription(request: Request):
     )
 
 
+@app.get("/api/instagram/analyze")
+def analyze_instagram_handle(handle: str, limit: int = 50):
+    """
+    Scrape a public Instagram profile via Apify and return real mood + AI analysis.
+    Falls back to a 503 error (not mock) so the frontend can show a clear message.
+    """
+    from config import APIFY_TOKEN
+
+    clean_handle = normalize_handle(handle)
+    if not clean_handle:
+        raise HTTPException(status_code=400, detail="Instagram handle is required.")
+
+    if INSTAGRAM_PROVIDER != "apify" or not APIFY_TOKEN:
+        raise HTTPException(
+            status_code=503,
+            detail="Apify is not configured on this server. Set INSTAGRAM_PROVIDER=apify and APIFY_TOKEN in Railway env vars.",
+        )
+
+    try:
+        from apify_service import get_posts as apify_posts, get_comments as apify_comments
+
+        posts = apify_posts(clean_handle, limit=5)
+        if not posts:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No public posts found for @{clean_handle}. The account may be private or the handle is incorrect.",
+            )
+
+        latest_post = posts[0]
+        comments_raw = apify_comments(
+            clean_handle,
+            post_shortcode=latest_post.get("shortcode"),
+            limit=min(limit, 100),
+        )
+
+        comments = [
+            {
+                "id": c.get("id", ""),
+                "text": c.get("text", ""),
+                "username": c.get("username", "unknown"),
+                "like_count": c.get("like_count", 0),
+            }
+            for c in comments_raw
+            if c.get("text", "").strip()
+        ]
+
+        result = build_response(latest_post, comments, source="apify_live", platform="instagram")
+        result["handle"] = f"@{clean_handle}"
+        result["profile"] = {
+            "username": latest_post.get("owner_username", clean_handle),
+            "full_name": latest_post.get("owner_full_name", ""),
+            "posts_analyzed": len(posts),
+            "comments_analyzed": len(comments),
+            "post_url": latest_post.get("url", ""),
+            "post_likes": latest_post.get("likes", 0),
+            "post_comments_count": latest_post.get("comments_count", 0),
+        }
+
+        # Deep AI analysis on real comment data
+        ai_result = ai_deep_analysis(
+            distribution=result["mood"]["distribution"],
+            dominant=result["mood"]["dominant_emotion"],
+            top_positive=result["highlights"]["top_positive"],
+            top_negative=result["highlights"]["top_negative"],
+            platform="instagram",
+            caption=latest_post.get("caption", ""),
+        )
+        if ai_result:
+            result["ai_analysis"] = ai_result
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("Instagram Apify analysis failed for @%s: %s", clean_handle, exc)
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
 @app.get("/api/mood")
 def get_mood(use_live_instagram: bool = False):
     if not use_live_instagram:
